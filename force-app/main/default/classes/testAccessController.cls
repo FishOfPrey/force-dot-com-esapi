@@ -608,6 +608,63 @@ private class testAccessController {
 			System.assert(!isAccessible, 'Not expecting to have access to view Contact records');
 		}
 	}
+
+	@IsTest
+	static void runasProfileNotAuthorizedToCreateSObject_WithStripping() {
+		runasProfileNotAuthorizedToCreateSObject_Internal(true);
+	}
+
+	@IsTest
+	static void runasProfileNotAuthorizedToCreateSObject_WithoutStripping() {
+		runasProfileNotAuthorizedToCreateSObject_Internal(false);
+	}
+
+	static void runasProfileNotAuthorizedToCreateSObject_Internal(boolean enableStripping) {
+		// Built in System profile
+		Profile readOnlyProfileId = [SELECT Id FROM Profile WHERE Name='No Access']; //Read Only
+
+		User u = new User(Alias = 'standt', Email='standarduser@esapi.com', 
+            EmailEncodingKey='UTF-8', LastName='Testing', LanguageLocaleKey='en_US', 
+            LocaleSidKey='en_US', ProfileId = readOnlyProfileId.Id, 
+            TimeZoneSidKey='America/Los_Angeles', UserName='standarduser@esapi.com');
+		insert u;
+
+		PermissionSet ps = new PermissionSet(Label = 'mockPs', Name = 'mockPs');
+		insert ps;
+
+		// https://gist.github.com/soapboxjoe/8333202
+		ObjectPermissions contactObjectPermission = new ObjectPermissions(SobjectType = 'Contact',
+																	ParentId = ps.Id,
+																	PermissionsCreate = false,
+																	PermissionsDelete = false,
+																	PermissionsEdit = false,
+																	PermissionsRead = true
+																);
+		insert contactObjectPermission;	
+
+		PermissionSetAssignment psa = new PermissionSetAssignment(PermissionSetId = ps.Id, AssigneeId = u.Id);
+		insert psa; 
+
+		System.runAs(u) {
+			ESAPI.accessController().setOperationMode(SFDCAccessController.OperationMode.ALL_OR_NONE);
+			ESAPI.accessController().setSharingMode(SFDCAccessController.SharingMode.WITH);
+			ESAPI.accessController().setStripInaccessibleActive(enableStripping);
+			
+			List<string> readWriteFields = new List<String>{'Account','Phone','Fax','MobilePhone','HomePhone','OtherPhone','AssistantPhone','Title','Department','AssistantName','LeadSource','Birthdate','Description','Jigsaw','CleanStatus'};
+			// OtherAddress - 'OtherStreet','OtherCity','OtherState','OtherPostalCode','OtherCountry','OtherLatitude','OtherLongitude','OtherGeocodeAccuracy',
+			readWriteFields.add('OtherAddress');
+			// MailingAddress - 'MailingStreet','MailingCity','MailingState','MailingPostalCode','MailingCountry','MailingLatitude','MailingLongitude','MailingGeocodeAccuracy'
+			readWriteFields.add('MailingAddress');
+			
+			List<FieldPermissions> readWritePerms = createFieldPermissions('Contact', ps.Id, true, true, readWriteFields);
+			insert readWritePerms;
+
+			List<String> fieldsToCheck = new List<String>{'LastName','FirstName','Salutation','OtherStreet','OtherCity','OtherState','OtherPostalCode','OtherCountry','OtherLatitude','OtherLongitude','MailingStreet','MailingCity','MailingState','MailingPostalCode','MailingCountry','MailingLatitude','MailingLongitude','Phone','Fax','MobilePhone','HomePhone','OtherPhone','AssistantPhone','ReportsToId','Title','Department','AssistantName','LeadSource','Birthdate','Description','OwnerId','EmailBouncedReason','EmailBouncedDate','Jigsaw','CleanStatus', 'Email'};
+
+			boolean isAccessible = ESAPI.accessController().isAuthorizedToView(Schema.Contact.getSobjectType(), fieldsToCheck);
+			System.assert(!isAccessible, 'Not expecting to have access to Create Contact records');
+		}
+	}
     
 	private static List<Schema.SObjectField> schemaSObjectFields(Schema.SObjectType someType, List<string> fields) {
 		List<Schema.SObjectField> schemaFields = new List<Schema.SObjectField>();
