@@ -151,17 +151,17 @@ global class SFDCAccessController {
 
             // Print stripped records - these are safe to insert
             List<SObject> afterRecords = decision.getRecords();
-            for (SObject strippedRecord : afterRecords) {
-                System.debug('strippedRecord:' + strippedRecord);
-            }
+            // for (SObject strippedRecord : afterRecords) {
+            //     System.debug('strippedRecord:' + strippedRecord);
+            // }
 
             // print modified indexes
             Set<Integer> modifiedIndexes = decision.getModifiedIndexes();
-            System.debug('modifiedIndexes:' + modifiedIndexes);
+            //System.debug('modifiedIndexes:' + modifiedIndexes);
 
             // Print removed fields
             Map<string, Set<string>> removedFields = decision.getRemovedFields();
-            System.debug('removedFields:' + removedFields);
+            //System.debug('removedFields:' + removedFields);
 
             if(omode == OperationMode.ALL_OR_NONE && !removedFields.isEmpty()) {
                 for(string firstSObjectType : removedFields.keySet()) {
